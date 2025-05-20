@@ -21,6 +21,7 @@ import messageRoutes from './routes/messageRoutes.js';
 import agentRoutes from './routes/agentRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import mortgageRoutes from './routes/mortgageRoutes.js';
 
 // Load env vars
 dotenv.config();
@@ -104,14 +105,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
-
-// Add route for mortgage calculator to prevent 404 errors
-app.get('/mortgage', (_req, res) => {
-  res.json({
-    success: true,
-    message: 'Mortgage calculator API endpoint'
-  });
-});
+app.use('/api/mortgage', mortgageRoutes);
 
 // Add CORS test endpoint for debugging cross-origin issues
 app.get('/api/cors-test', (req, res) => {
