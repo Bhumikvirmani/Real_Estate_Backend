@@ -154,6 +154,22 @@ app.use((err, _req, res, _next) => {
   });
 });
 
+
+app.get('/health', (req, res) => {
+  const healthcheck = {
+    uptime: process.uptime(),
+    message: 'OK',
+    timestamp: Date.now(),
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  };
+  
+  try {
+    res.status(200).json(healthcheck);
+  } catch (error) {
+    healthcheck.message = error;
+    res.status(503).json(healthcheck);
+  }
+});
 // Connect to MongoDB with enhanced configuration
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
