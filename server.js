@@ -41,31 +41,36 @@ app.use(cors({
 
     // Define allowed origins
     const allowedOrigins = [
+      // Local development origins
       'http://localhost:8080',
       'http://localhost:3000',
       'http://localhost:5000',
       'http://localhost:5173',
+      // Production origins
       'https://real-estate-reimagined.vercel.app',
       'https://real-estate-backend-bq2m.onrender.com',
-      'https://brickhive.netlify.app/'
+      'https://brickhive.netlify.app'
     ];
 
     if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      console.log(`CORS request allowed from: ${origin || 'No origin'}`);
       callback(null, true);
     } else {
-      console.log('CORS blocked request from:', origin);
+      console.log(`CORS blocked request from: ${origin}`);
       // In development, allow all origins
       // In production, only allow whitelisted origins
       if (process.env.NODE_ENV === 'production') {
-        callback(new Error('Not allowed by CORS'));
+        console.error(`Production CORS violation: ${origin} tried to access the API`);
+        callback(new Error(`Origin ${origin} not allowed by CORS policy`));
       } else {
+        console.warn(`Development mode: allowing request from non-whitelisted origin: ${origin}`);
         callback(null, true); // Allow all origins in development
       }
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Test-Auth'],
   preflightContinue: false,
   optionsSuccessStatus: 204
 }));
@@ -105,6 +110,20 @@ app.get('/mortgage', (_req, res) => {
   res.json({
     success: true,
     message: 'Mortgage calculator API endpoint'
+  });
+});
+
+// Add CORS test endpoint for debugging cross-origin issues
+app.get('/api/cors-test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'CORS is working correctly',
+    origin: req.headers.origin || 'No origin header',
+    headers: {
+      'content-type': req.headers['content-type'],
+      'user-agent': req.headers['user-agent'],
+      'authorization': req.headers['authorization'] ? 'Present (not shown for security)' : 'Not present'
+    }
   });
 });
 
@@ -164,7 +183,7 @@ app.use((err, _req, res, _next) => {
 });
 
 
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   const healthcheck = {
     uptime: process.uptime(),
     message: 'OK',
