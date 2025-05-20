@@ -46,7 +46,8 @@ app.use(cors({
       'http://localhost:5000',
       'http://localhost:5173',
       'https://real-estate-reimagined.vercel.app',
-      'https://real-estate-backend-bq2m.onrender.com'
+      'https://real-estate-backend-bq2m.onrender.com',
+      'https://brickhive.netlify.app/'
     ];
 
     if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
