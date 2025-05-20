@@ -44,14 +44,22 @@ app.use(cors({
       'http://localhost:8080',
       'http://localhost:3000',
       'http://localhost:5000',
-      'https://real-estate-reimagined.vercel.app'
+      'http://localhost:5173',
+      'https://real-estate-reimagined.vercel.app',
+      'https://real-estate-backend-bq2m.onrender.com'
     ];
 
     if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
       callback(null, true);
     } else {
       console.log('CORS blocked request from:', origin);
-      callback(null, true); // Allow all origins in development
+      // In development, allow all origins
+      // In production, only allow whitelisted origins
+      if (process.env.NODE_ENV === 'production') {
+        callback(new Error('Not allowed by CORS'));
+      } else {
+        callback(null, true); // Allow all origins in development
+      }
     }
   },
   credentials: true,
@@ -162,7 +170,7 @@ app.get('/health', (req, res) => {
     timestamp: Date.now(),
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   };
-  
+
   try {
     res.status(200).json(healthcheck);
   } catch (error) {
