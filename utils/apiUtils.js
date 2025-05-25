@@ -109,11 +109,16 @@ export const createFilterFromQuery = (query, allowedFields = []) => {
   for (const field of allowedFields) {
     if (query[field] !== undefined) {
       // Handle special case for price ranges
-      if (field === 'price' && (query.minPrice || query.maxPrice)) {
-        filter.price = {};
-        if (query.minPrice) filter.price.$gte = Number(query.minPrice);
-        if (query.maxPrice) filter.price.$lte = Number(query.maxPrice);
-      } 
+      if (field === 'minPrice' || field === 'maxPrice') {
+        if (!filter.price) {
+          filter.price = {};
+        }
+        if (field === 'minPrice') {
+          filter.price.$gte = Number(query[field]);
+        } else if (field === 'maxPrice') {
+          filter.price.$lte = Number(query[field]);
+        }
+      }
       // Handle array fields with comma-separated values
       else if (query[field].includes(',')) {
         filter[field] = { $in: query[field].split(',') };
