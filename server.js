@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import compression from 'compression';
+import fetch from 'node-fetch';
 
 // Middleware imports
 import { requestLogger, errorLogger } from './middleware/loggingMiddleware.js';
@@ -192,6 +193,19 @@ app.get('/health', (_req, res) => {
     res.status(503).json(healthcheck);
   }
 });
+const KEEP_ALIVE_URL = process.env.KEEP_ALIVE_URL || 'https://real-estate-backend-bq2m.onrender.com/health';
+const KEEP_ALIVE_INTERVAL = 60 * 1000; // 60 seconds
+
+function keepServerAwake() {
+  fetch(KEEP_ALIVE_URL)
+    .then(response => {
+      console.log(`[Keep-Alive] Ping sent at ${new Date().toISOString()}: Status ${response.status}`);
+    })
+    .catch(error => {
+      console.error('[Keep-Alive] Ping error:', error.message);
+    });
+}
+
 // Connect to MongoDB with enhanced configuration
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
