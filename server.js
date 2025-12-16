@@ -37,7 +37,7 @@ app.use(helmet({
 
 // Enhanced CORS configuration
 app.use(cors({
-  origin: function(origin, callback) {
+  origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl requests)
     if (!origin) return callback(null, true);
 
@@ -141,6 +141,13 @@ if (process.env.NODE_ENV === 'production') {
     res.sendFile(path.resolve(__dirname, '../dist', 'index.html'));
   });
 }
+app.get('/', (_req, res) => {
+  res.send('Backend is running');
+});
+
+app.get('/favicon.ico', (_req, res) => {
+  res.status(204).end(); // or serve a real favicon
+});
 
 // 404 handler for undefined routes
 app.use('*', (req, res) => {
@@ -161,13 +168,13 @@ app.use((err, _req, res, _next) => {
 
   // Determine if this is a Mongoose error
   const isMongooseError = err.name === 'MongooseError' ||
-                          err.name === 'CastError' ||
-                          err.name === 'MongoError';
+    err.name === 'CastError' ||
+    err.name === 'MongoError';
 
   // Set appropriate status code based on error type
   const statusCode = err.status ||
-                    (isValidationError ? 400 :
-                     isMongooseError ? 400 : 500);
+    (isValidationError ? 400 :
+      isMongooseError ? 400 : 500);
 
   res.status(statusCode).json({
     success: false,
@@ -206,83 +213,83 @@ function keepServerAwake() {
     });
 }
 
-// Connect to MongoDB with enhanced configuration
 mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 10000, // Reduced timeout for faster failure detection
+  serverSelectionTimeoutMS: 10000,
   socketTimeoutMS: 45000,
-  // Keep Atlas-specific settings if using MongoDB Atlas
   ...(process.env.MONGODB_URI.includes('mongodb+srv') ? {
-    replicaSet: 'atlas-viqyk3-shard-0',
     ssl: true,
     authSource: 'admin',
     retryWrites: true,
     w: 'majority'
   } : {})
 })
-.then(() => {
-  console.log('Connected to MongoDB');
-  console.log(`Database: ${mongoose.connection.name}`);
-  console.log(`Host: ${mongoose.connection.host}`);
+  .then(() => {
+    console.log('Connected to MongoDB');
+    console.log(`Database: ${mongoose.connection.name}`);
+    console.log(`Host: ${mongoose.connection.host}`);
 
-  // Start server with port fallback mechanism and graceful shutdown
-  const startServer = (retries = 3) => {
-    const PORT = parseInt(process.env.PORT || '5000', 10);
-    const server = app.listen(PORT)
-      .on('listening', () => {
-        console.log(`Server is running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+    // Start server with port fallback mechanism and graceful shutdown
+    const startServer = (retries = 3) => {
+      const PORT = parseInt(process.env.PORT || '5000', 10);
+      const server = app.listen(PORT)
+        .on('listening', () => {
+          console.log(`Server is running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
 
-        // Set up graceful shutdown
-        const gracefulShutdown = (signal) => {
-          console.log(`${signal} received. Shutting down gracefully...`);
-          server.close(() => {
-            console.log('HTTP server closed');
-            mongoose.connection.close(false, () => {
+          // Set up graceful shutdown
+          const gracefulShutdown = async (signal) => {
+            console.log(`${signal} received. Shutting down gracefully...`);
+            try {
+              await mongoose.connection.close(); // no callback, promise-based
               console.log('MongoDB connection closed');
-              process.exit(0);
-            });
-          });
+              server.close(() => {
+                console.log('HTTP server closed');
+                process.exit(0);
+              });
+            } catch (err) {
+              console.error('Error during shutdown:', err);
+              process.exit(1);
+            }
 
-          // Force close if graceful shutdown takes too long
-          setTimeout(() => {
-            console.error('Could not close connections in time, forcefully shutting down');
+            // Force close if graceful shutdown takes too long
+            setTimeout(() => {
+              console.error('Could not close connections in time, forcefully shutting down');
+              process.exit(1);
+            }, 10000);
+          };
+
+
+          // Listen for termination signals
+          process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+          process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+        })
+        .on('error', (err) => {
+          if (err.code === 'EADDRINUSE' && retries > 0) {
+            console.log(`Port ${PORT} is busy, trying port ${PORT + 1}...`);
+            process.env.PORT = (PORT + 1).toString();
+            server.close();
+            startServer(retries - 1);
+          } else {
+            console.error('Server error:', err);
             process.exit(1);
-          }, 10000);
-        };
+          }
+        });
 
-        // Listen for termination signals
-        process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-        process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-      })
-      .on('error', (err) => {
-        if (err.code === 'EADDRINUSE' && retries > 0) {
-          console.log(`Port ${PORT} is busy, trying port ${PORT + 1}...`);
-          process.env.PORT = (PORT + 1).toString();
-          server.close();
-          startServer(retries - 1);
-        } else {
-          console.error('Server error:', err);
-          process.exit(1);
-        }
+      return server;
+    };
+
+    startServer();
+  })
+  .catch((error) => {
+    console.error('MongoDB connection error:', error);
+    if (error.reason) {
+      console.error('Connection Details:', {
+        type: error.reason?.type,
+        setName: error.reason?.setName,
+        servers: error.reason?.servers ? Array.from(error.reason.servers.keys()) : []
       });
-
-    return server;
-  };
-
-  startServer();
-})
-.catch((error) => {
-  console.error('MongoDB connection error:', error);
-  if (error.reason) {
-    console.error('Connection Details:', {
-      type: error.reason?.type,
-      setName: error.reason?.setName,
-      servers: error.reason?.servers ? Array.from(error.reason.servers.keys()) : []
-    });
-  }
-  process.exit(1);
-});
+    }
+    process.exit(1);
+  });
 
 // Handle MongoDB connection events
 mongoose.connection.on('error', (err) => {
